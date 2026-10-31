@@ -1,0 +1,21 @@
+@model PppoeFormModel
+@{ ViewData["Title"] = Model.Id == 0 ? "Add PPPoE user" : "Edit PPPoE user"; }
+<h2>@ViewData["Title"]</h2>
+<form asp-action="Save" method="post" class="col-md-5">
+    <input type="hidden" asp-for="Id" />
+    <div asp-validation-summary="All" class="text-danger"></div>
+    <div class="mb-3"><label asp-for="RouterId" class="form-label"></label>
+        <select asp-for="RouterId" class="form-select" disabled="@(Model.Id != 0)">
+            <option value="0">-- select --</option>
+            @foreach (var r in Model.Routers) { <option value="@r.Id" selected="@(Model.RouterId == r.Id)">@r.Name (@r.Host)</option> }
+        </select>
+        @if (Model.Id != 0) { <input type="hidden" asp-for="RouterId" /> }
+    </div>
+    <div class="mb-3"><label asp-for="Username" class="form-label"></label><input asp-for="Username" class="form-control" /></div>
+    <div class="form-text mb-3">The username must match an existing PPPoE secret on the Mikrotik. It is not created or imported; the worker only enables it.</div>
+    <div class="mb-3"><label asp-for="ExpiresAt" class="form-label"></label>
+        <input asp-for="ExpiresAt" type="datetime-local" class="form-control" value="@(Model.ExpiresAt?.ToString("yyyy-MM-ddTHH:mm"))" />
+        <div class="form-text">Active until this time (UTC). Leave empty for no expiry.</div></div>
+    <div class="form-check mb-3"><input asp-for="IsActive" class="form-check-input" /><label asp-for="IsActive" class="form-check-label"></label></div>
+    <button class="btn btn-primary">Save</button> <a asp-action="Index" class="btn btn-link">Cancel</a>
+</form>

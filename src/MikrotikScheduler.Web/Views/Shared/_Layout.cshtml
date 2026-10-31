@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Mikrotik Scheduler</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body>
+<header>
+    <nav class="navbar navbar-expand-sm navbar-dark bg-dark mb-3">
+        <div class="container">
+            <a class="navbar-brand" asp-controller="Home" asp-action="Index">Mikrotik Scheduler</a>
+            <ul class="navbar-nav me-auto">
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <li class="nav-item"><a class="nav-link" asp-controller="Routers" asp-action="Index">Routers</a></li>
+                    <li class="nav-item"><a class="nav-link" asp-controller="PppoeUsers" asp-action="Index">PPPoE Users</a></li>
+                    <li class="nav-item"><a class="nav-link" asp-controller="SyncLogs" asp-action="Index">Sync Logs</a></li>
+                }
+            </ul>
+            @if (User.Identity?.IsAuthenticated == true)
+            {
+                <form asp-controller="Account" asp-action="Logout" method="post" class="d-flex align-items-center">
+                    <span class="navbar-text me-3">@User.Identity.Name</span>
+                    <button class="btn btn-outline-light btn-sm">Sign out</button>
+                </form>
+            }
+        </div>
+    </nav>
+</header>
+<div class="container">
+    @if (TempData["Success"] is string ok) { <div class="alert alert-success">@ok</div> }
+    @if (TempData["Error"] is string err) { <div class="alert alert-danger">@err</div> }
+    <main role="main" class="pb-3">@RenderBody()</main>
+</div>
+<script src="~/lib/jquery/dist/jquery.min.js"></script>
+<script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+@await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

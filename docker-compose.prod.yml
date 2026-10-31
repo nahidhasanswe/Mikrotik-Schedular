@@ -1,0 +1,54 @@
+# Production compose for a server that already runs jwilder/nginx-proxy + jrcs/letsencrypt-nginx-proxy-companion
+# and a host-installed SQL Server.
+#
+#   cp .env.prod.example .env && chmod 600 .env   # edit values
+#   docker compose -f docker-compose.prod.yml up -d --build
+#
+# The web container joins your existing proxy network, so nginx-proxy discovers it via VIRTUAL_HOST and the
+# companion issues the TLS certificate via LETSENCRYPT_HOST. No ports are published on the host.
+services:
+  api:
+    build:
+      context: .
+      dockerfile: src/MikrotikScheduler.Api/Dockerfile
+    environment:
+      ConnectionStrings__Default: ${CONNECTION_STRING:?set CONNECTION_STRING in .env}
+      Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env}
+      Sync__IntervalSeconds: ${SYNC_INTERVAL_SECONDS:-30}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"     # reach SQL Server installed on the host
+    volumes:
+      - dpkeys:/keys
+    networks: [internal]
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf \"GET /health HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q Healthy <&3'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  web:
+    build:
+      context: .
+      dockerfile: src/MikrotikScheduler.Web/Dockerfile
+    environment:
+      Api__BaseUrl: http://api:8080
+      VIRTUAL_HOST: ${DOMAIN:?set DOMAIN in .env}
+      VIRTUAL_PORT: "8080"
+      LETSENCRYPT_HOST: ${DOMAIN}
+      LETSENCRYPT_EMAIL: ${LETSENCRYPT_EMAIL:?set LETSENCRYPT_EMAIL in .env}
+    depends_on:
+      api:
+        condition: service_healthy
+    networks: [internal, proxy]
+    restart: unless-stopped
+
+networks:
+  internal:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-proxy-net}      # name of the network your nginx-proxy container is attached to
+
+volumes:
+  dpkeys:

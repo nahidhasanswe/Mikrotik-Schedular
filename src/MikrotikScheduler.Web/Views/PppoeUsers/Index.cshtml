@@ -1,0 +1,59 @@
+@model PppoeListViewModel
+@{ ViewData["Title"] = "PPPoE users"; var returnUrl = Context.Request.Path + Context.Request.QueryString; }
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2>PPPoE users</h2>
+    <a asp-action="Create" class="btn btn-primary">Add PPPoE user</a>
+</div>
+<p class="text-muted">Users that are <b>Active</b> and not expired get their existing PPPoE secret enabled on the Mikrotik by the background service. Inactive or expired users are left alone.</p>
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto"><select name="routerId" class="form-select" onchange="this.form.submit()">
+        <option value="">All routers</option>
+        @foreach (var r in Model.Routers) { <option value="@r.Id" selected="@(Model.RouterId == r.Id)">@r.Name</option> }
+    </select></div>
+    <div class="col-auto"><select name="isActive" class="form-select" onchange="this.form.submit()">
+        <option value="">Any status</option>
+        <option value="true" selected="@(Model.IsActive == true)">Active</option>
+        <option value="false" selected="@(Model.IsActive == false)">Inactive</option>
+    </select></div>
+    <div class="col-auto"><input name="search" value="@Model.Search" class="form-control" placeholder="Search username" /></div>
+    <div class="col-auto"><button class="btn btn-outline-secondary">Filter</button></div>
+</form>
+<table class="table table-striped align-middle">
+    <thead><tr><th>Username</th><th>Router</th><th>Active</th><th>Expires (UTC)</th><th>Router sync</th><th>Last synced (UTC)</th><th></th></tr></thead>
+    <tbody>
+    @foreach (var u in Model.Result.Items)
+    {
+        var badge = u.SyncStatus switch { "Synced" => "bg-success", "Failed" => "bg-danger", _ => "bg-warning text-dark" };
+        <tr>
+            <td>@u.Username</td>
+            <td>@u.RouterName</td>
+            <td>
+                <form asp-action="SetActive" method="post" class="d-inline">
+                    <input type="hidden" name="id" value="@u.Id" /><input type="hidden" name="isActive" value="@((!u.IsActive).ToString().ToLowerInvariant())" /><input type="hidden" name="returnUrl" value="@returnUrl" />
+                    <button class="btn btn-sm @(u.IsActive ? "btn-success" : "btn-outline-secondary")">@(u.IsActive ? "Active" : "Inactive")</button>
+                </form>
+            </td>
+            <td>@if (u.ExpiresAt == null) { <span class="text-muted">never</span> } else if (u.IsExpired) { <span class="badge bg-dark">Expired @u.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm")</span> } else { @u.ExpiresAt.Value.ToString("yyyy-MM-dd HH:mm") }</td>
+            <td><span class="badge @badge" title="@u.LastError">@u.SyncStatus</span>@if (u.LastError != null) { <div class="small text-danger">@u.LastError</div> }</td>
+            <td>@(u.LastSyncedAt?.ToString("yyyy-MM-dd HH:mm:ss") ?? "-")</td>
+            <td class="text-end text-nowrap">
+                <a asp-action="Edit" asp-route-id="@u.Id" class="btn btn-sm btn-outline-dark">Edit</a>
+                <form asp-action="Delete" asp-route-id="@u.Id" method="post" class="d-inline" onsubmit="return confirm('Delete from this system? (Nothing is removed on the router.)')"><button class="btn btn-sm btn-outline-danger">Delete</button></form>
+            </td>
+        </tr>
+    }
+    @if (Model.Result.Items.Count == 0) { <tr><td colspan="7" class="text-muted">No PPPoE users.</td></tr> }
+    </tbody>
+</table>
+@{
+    var pages = (int)Math.Ceiling(Model.Result.Total / (double)Model.Result.PageSize);
+}
+@if (pages > 1)
+{
+    <nav><ul class="pagination">
+    @for (var p = 1; p <= pages; p++)
+    {
+        <li class="page-item @(p == Model.Result.Page ? "active" : "")"><a class="page-link" asp-action="Index" asp-route-page="@p" asp-route-routerId="@Model.RouterId" asp-route-isActive="@Model.IsActive" asp-route-search="@Model.Search">@p</a></li>
+    }
+    </ul></nav>
+}

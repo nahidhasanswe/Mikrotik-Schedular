@@ -1,0 +1,53 @@
+# Usage:
+#   cp .env.example .env   # then edit
+#   docker compose up -d --build                       # uses the SQL Server in CONNECTION_STRING
+#   docker compose --profile localdb up -d --build     # also starts a local SQL Server container
+services:
+  api:
+    build:
+      context: .
+      dockerfile: src/MikrotikScheduler.Api/Dockerfile
+    environment:
+      ConnectionStrings__Default: ${CONNECTION_STRING:?set CONNECTION_STRING in .env}
+      Jwt__Key: ${JWT_KEY:?set JWT_KEY in .env}
+      Sync__IntervalSeconds: 30
+    ports:
+      - "${API_PORT:-5133}:8080"
+    volumes:
+      - dpkeys:/keys
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/8080 && printf \"GET /health HTTP/1.0\\r\\n\\r\\n\" >&3 && grep -q Healthy <&3'"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  web:
+    build:
+      context: .
+      dockerfile: src/MikrotikScheduler.Web/Dockerfile
+    environment:
+      Api__BaseUrl: http://api:8080
+    ports:
+      - "${WEB_PORT:-5200}:8080"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  sqlserver:
+    profiles: ["localdb"]
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Your_strong_Passw0rd}
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqldata:/var/opt/mssql
+    restart: unless-stopped
+
+volumes:
+  dpkeys:
+  sqldata:
